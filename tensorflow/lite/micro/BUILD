@@ -6,6 +6,7 @@ load(
 
 package(
     default_visibility = ["//visibility:public"],
+    # Disabling layering_check because of http://b/177257332
     features = ["-layering_check"],
     licenses = ["notice"],
 )
@@ -60,6 +61,7 @@ cc_library(
         ":micro_allocator",
         ":micro_error_reporter",
         ":micro_profiler",
+        ":micro_resource_variable",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/kernels/internal:compatibility",
         "//tensorflow/lite/schema:schema_fbs",
@@ -92,6 +94,7 @@ cc_library(
     ],
     copts = micro_copts(),
     deps = [
+        ":flatbuffer_utils",
         ":memory_helpers",
         ":micro_compatibility",
         ":micro_error_reporter",
@@ -100,10 +103,20 @@ cc_library(
         "//tensorflow/lite/core/api:error_reporter",
         "//tensorflow/lite/core/api:op_resolver",
         "//tensorflow/lite/kernels/internal:compatibility",
-        "//tensorflow/lite/micro/memory_planner",
         "//tensorflow/lite/micro/memory_planner:greedy_memory_planner",
+        "//tensorflow/lite/micro/memory_planner:micro_memory_planner",
         "//tensorflow/lite/schema:schema_fbs",
         "//tensorflow/lite/schema:schema_utils",
+        "@flatbuffers//:runtime_cc",
+    ],
+)
+
+cc_library(
+    name = "flatbuffer_utils",
+    srcs = ["flatbuffer_utils.cc"],
+    hdrs = ["flatbuffer_utils.h"],
+    deps = [
+        "//tensorflow/lite/schema:schema_fbs",
         "@flatbuffers//:runtime_cc",
     ],
 )
@@ -161,10 +174,6 @@ cc_library(
         "//tensorflow/lite/core/api",
         "//tensorflow/lite/kernels:op_macros",
         "//tensorflow/lite/kernels/internal:compatibility",
-        "//tensorflow/lite/micro/kernels:conv",
-        "//tensorflow/lite/micro/kernels:depthwise_conv",
-        "//tensorflow/lite/micro/kernels:ethosu",
-        "//tensorflow/lite/micro/kernels:fully_connected",
         "//tensorflow/lite/micro/kernels:micro_ops",
         "//tensorflow/lite/schema:schema_fbs",
     ],
@@ -195,6 +204,24 @@ cc_library(
         ":micro_compatibility",
         ":micro_string",
         "//tensorflow/lite/core/api",
+    ],
+)
+
+cc_library(
+    name = "micro_resource_variable",
+    srcs = [
+        "micro_resource_variable.cc",
+    ],
+    hdrs = [
+        "micro_resource_variable.h",
+    ],
+    copts = micro_copts(),
+    deps = [
+        ":micro_allocator",
+        ":micro_error_reporter",
+        ":micro_utils",
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/kernels/internal:compatibility",
     ],
 )
 
@@ -247,6 +274,8 @@ cc_library(
     ],
     copts = micro_copts(),
     deps = [
+        ":memory_helpers",
+        ":micro_error_reporter",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/kernels:op_macros",
     ],
@@ -291,6 +320,7 @@ cc_test(
     ],
     deps = [
         ":micro_error_reporter",
+        ":system_setup",
     ],
 )
 
@@ -383,6 +413,21 @@ cc_test(
 )
 
 cc_test(
+    name = "flatbuffer_utils_test",
+    srcs = [
+        "flatbuffer_utils_test.cc",
+    ],
+    tags = [
+        "nomsan",  # TODO(b/192311485): See http://b/192311485#comment2
+    ],
+    deps = [
+        ":flatbuffer_utils",
+        ":test_helpers",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+cc_test(
     name = "memory_helpers_test",
     srcs = [
         "memory_helpers_test.cc",
@@ -435,6 +480,15 @@ cc_test(
     ],
     deps = [
         ":micro_time",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+cc_test(
+    name = "micro_resource_variable_test",
+    srcs = ["micro_resource_variable_test.cc"],
+    deps = [
+        ":micro_resource_variable",
         "//tensorflow/lite/micro/testing:micro_test",
     ],
 )

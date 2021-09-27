@@ -18,20 +18,18 @@ kilobytes of Flash.
 
 ## Table of contents
 
--   [Deploy to ARC EM SDP](#deploy-to-arc-em-sdp)
--   [Deploy to Arduino](#deploy-to-arduino)
+-   [Running on ARC](#running-on-ARC)
 -   [Deploy to ESP32](#deploy-to-esp32)
--   [Deploy to SparkFun Edge](#deploy-to-sparkfun-edge)
 -   [Deploy to STM32F746](#deploy-to-STM32F746)
 -   [Deploy to NXP FRDM K66F](#deploy-to-nxp-frdm-k66f)
--   [Deploy to HIMAX WE1 EVB](#deploy-to-himax-we1-evb)
 -   [Deploy to CEVA BX1/SP500](#deploy-to-ceva-bx1)
 -   [Run on macOS](#run-on-macos)
 -   [Run the tests on a development machine](#run-the-tests-on-a-development-machine)
 -   [Train your own model](#train-your-own-model)
 
-## Deploy to ARC EM SDP
+## Running on ARC
 
+### **Deploy on ARC EMSDP**
 The following instructions will help you to build and deploy this example to
 [ARC EM SDP](https://www.synopsys.com/dw/ipdir.php?ds=arc-em-software-development-platform)
 board. General information and instructions on using the board with TensorFlow
@@ -78,7 +76,7 @@ reduce total size of application. It can be omitted.
 
 For more detailed information on building and running examples see the
 appropriate sections of general descriptions of the
-[ARC EM SDP usage with TFLM](/tensorflow/lite/micro/tools/make/targets/arc/README.md#ARC-EM-Software-Development-Platform-ARC-EM-SDP).
+[ARC EM SDP usage with TensorFlow Lite Micro (TFLM)](/tensorflow/lite/micro/tools/make/targets/arc/README.md#ARC-EM-Software-Development-Platform-ARC-EM-SDP).
 In the directory with generated project you can also find a
 *README_ARC_EMSDP.md* file with instructions and options on building and
 running. Here we only briefly mention main steps which are typically enough to
@@ -88,10 +86,10 @@ get it started.
     [connect the board](/tensorflow/lite/micro/tools/make/targets/arc/README.md#connect-the-board)
     and open an serial connection.
 
-2.  Go to the generated example project director
+2.  Go to the generated example project directory.
 
     ```
-    cd tensorflow/lite/micro/tools/make/gen/arc_emsdp_arc/prj/micro_speech_mock/make
+    cd tensorflow/lite/micro/tools/make/gen/arc_emsdp_arc_default/prj/micro_speech_mock/make
     ```
 
 3.  Build the example using
@@ -128,62 +126,65 @@ get it started.
 In both cases (step 5 and 6) you will see the application output in the serial
 terminal.
 
-## Deploy to Arduino
+### **Deploy on ARC VPX processor**
 
-The following instructions will help you build and deploy this example to
-[Arduino](https://www.arduino.cc/) devices.
+The [embARC MLI Library 2.0](https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/tree/Release_2.0_EA) enables TFLM library and examples to be used with the ARC VPX processor. This is currently an experimental feature. General information and instructions on using embARC MLI Library 2.0 with TFLM can be found in the common [ARC targets description](/tensorflow/lite/micro/tools/make/targets/arc/README.md).
 
-The example has been tested with the following devices:
+### Initial Setup
 
-- [Arduino Nano 33 BLE Sense](https://store.arduino.cc/usa/nano-33-ble-sense-with-headers)
+Follow the instructions in the [Custom ARC EM/HS/VPX Platform](/tensorflow/lite/micro/tools/make/targets/arc/README.md#Custom-ARC-EMHSVPX-Platform) section to get and install all the required tools for working with the ARC VPX Processor.
 
-The Arduino Nano 33 BLE Sense is currently the only Arduino with a built-in
-microphone. If you're using a different Arduino board and attaching your own
-microphone, you'll need to implement your own +audio_provider.cc+. It also has a
-built-in LED, which is used to indicate that a word has been recognized.
+### Generate Example Project
 
-### Install the Arduino_TensorFlowLite library
-
-This example application is included as part of the official TensorFlow Lite
-Arduino library. To install it, open the Arduino library manager in
-`Tools -> Manage Libraries...` and search for `Arduino_TensorFlowLite`.
-
-### Load and run the example
-
-Once the library has been added, go to `File -> Examples`. You should see an
-example near the bottom of the list named `TensorFlowLite:micro_speech`. Select
-it and click `micro_speech` to load the example.
-
-Use the Arduino IDE to build and upload the example. Once it is running, you
-should see the built-in LED on your device flashing. Saying the word "yes" will
-cause the LED to remain on for 3 seconds. The current model has fairly low
-accuracy, so you may have to repeat "yes" a few times.
-
-The program also outputs inference results to the serial port, which appear as
-follows:
+The example project for ARC VPX platform can be generated with the following
+command:
 
 ```
-Heard yes (201) @4056ms
-Heard no (205) @6448ms
-Heard unknown (201) @13696ms
-Heard yes (205) @15000ms
+make -f tensorflow/lite/micro/tools/make/Makefile \
+TARGET=arc_custom\
+ARC_TAGS=mli20_experimental \
+BUILD_LIB_DIR=<path_to_buildlib> \
+TCF_FILE=<path_to_tcf_file> \
+LCF_FILE=<path_to_lcf_file> \
+OPTIMIZED_KERNEL_DIR=arc_mli \
+generate_micro_speech_mock_make_project
 ```
+TCF file for VPX Processor can be generated using tcfgen tool which is part of [MetaWare Development Toolkit](#MetaWare-Development-Toolkit). \
+The following command can be used to generate TCF file to run applications on VPX Processor using nSIM Simulator:
+```
+tcfgen -o vpx5_integer_full.tcf -tcf=vpx5_integer_full -iccm_size=0x80000 -dccm_size=0x40000
+```
+VPX Processor configuration may require a custom run-time library specified using the BUILD_LIB_DIR option. Please, check MLI Library 2.0 [documentation](https://github.com/foss-for-synopsys-dwc-arc-processors/embarc_mli/tree/Release_2.0_EA#build-configuration-options) for more details. 
 
-The number after each detected word is its score. By default, the program only
-considers matches as valid if their score is over 200, so all of the scores you
-see will be at least 200.
+### Build and Run Example
 
-When the program is run, it waits 5 seconds for a USB-serial connection to be
-available. If there is no connection available, it will not output data. To see
-the serial output in the Arduino desktop IDE, do the following:
+For more detailed information on building and running examples see the
+appropriate sections of general descriptions of the
+[Custom ARC EM/HS/VPX Platform](/tensorflow/lite/micro/tools/make/targets/arc/README.md#Custom-ARC-EMHSVPX-Platform).
+In the directory with generated project you can also find a
+*README_ARC.md* file with instructions and options on building and
+running. Here we only briefly mention main steps which are typically enough to
+get started.
 
-1. Open the Arduino IDE
-1. Connect the Arduino board to your computer via USB
-1. Press the reset button on the Arduino board
-1. Within 5 seconds, go to `Tools -> Serial Monitor` in the Arduino IDE. You may
-   have to try several times, since the board will take a moment to connect.
+1.  Go to the generated example project directory.
 
-If you don't see any output, repeat the process again.
+    ```
+    cd tensorflow/lite/micro/tools/make/gen/vpx5_integer_full_mli20_arc_default/prj/micro_speech_mock/make
+    ```
+
+2.  Build the example using
+
+    ```
+    make app
+    ```
+
+3.  To run application from the MetaWare Debugger installed in your environment:
+
+    *   From the console, type `make run`.
+    *   To stop the execution type `Ctrl+C` in the console several times.
+
+In both cases (step 5 and 6) you will see the application output in the serial
+terminal.
 
 ## Deploy to ESP32
 
@@ -248,155 +249,6 @@ The previous two commands can be combined:
 idf.py --port /dev/ttyUSB0 flash monitor
 ```
 
-## Deploy to SparkFun Edge
-
-The following instructions will help you build and deploy this example on the
-[SparkFun Edge development board](https://sparkfun.com/products/15170).
-
-The program will toggle the blue LED on and off with each inference. It will
-switch on the yellow LED when a "yes" is heard, the red LED when a "no" is
-heard, and the green LED when an unknown command is heard.
-
-The [AI on a microcontroller with TensorFlow Lite and SparkFun Edge](https://codelabs.developers.google.com/codelabs/sparkfun-tensorflow)
-walks through the deployment process in detail. The steps are also
-summarized below.
-
-### Compile the binary
-
-The following command will download the required dependencies and then compile a
-binary for the SparkFun Edge:
-
-```
-make -f tensorflow/lite/micro/tools/make/Makefile TARGET=sparkfun_edge OPTIMIZED_KERNEL_DIR=cmsis_nn micro_speech_bin
-```
-
-The binary will be created in the following location:
-
-```
-tensorflow/lite/micro/tools/make/gen/sparkfun_edge_cortex-m4/bin/micro_speech.bin
-```
-
-### Sign the binary
-
-The binary must be signed with cryptographic keys to be deployed to the device.
-We'll now run some commands that will sign our binary so it can be flashed to
-the SparkFun Edge. The scripts we are using come from the Ambiq SDK, which is
-downloaded when the `Makefile` is run.
-
-Enter the following command to set up some dummy cryptographic keys we can use
-for development:
-
-```
-cp tensorflow/lite/micro/tools/make/downloads/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/keys_info0.py \
-tensorflow/lite/micro/tools/make/downloads/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/keys_info.py
-```
-
-Next, run the following command to create a signed binary:
-
-```
-python3 tensorflow/lite/micro/tools/make/downloads/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/create_cust_image_blob.py \
---bin tensorflow/lite/micro/tools/make/gen/sparkfun_edge_cortex-m4/bin/micro_speech.bin \
---load-address 0xC000 \
---magic-num 0xCB \
--o main_nonsecure_ota \
---version 0x0
-```
-
-This will create the file `main_nonsecure_ota.bin`. We'll now run another
-command to create a final version of the file that can be used to flash our
-device with the bootloader script we will use in the next step:
-
-```
-python3 tensorflow/lite/micro/tools/make/downloads/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/create_cust_wireupdate_blob.py \
---load-address 0x20000 \
---bin main_nonsecure_ota.bin \
--i 6 \
--o main_nonsecure_wire \
---options 0x1
-```
-
-You should now have a file called `main_nonsecure_wire.bin` in the directory
-where you ran the commands. This is the file we'll be flashing to the device.
-
-### Flash the binary
-
-Next, attach the board to your computer via a USB-to-serial adapter.
-
-**Note:** If you're using the [SparkFun Serial Basic Breakout](https://www.sparkfun.com/products/15096),
-you should [install the latest drivers](https://learn.sparkfun.com/tutorials/sparkfun-serial-basic-ch340c-hookup-guide#drivers-if-you-need-them)
-before you continue.
-
-Once connected, assign the USB device name to an environment variable:
-
-```
-export DEVICENAME=put your device name here
-```
-
-Set another variable with the baud rate:
-
-```
-export BAUD_RATE=921600
-```
-
-Now, hold the button marked `14` on the device. While still holding the button,
-hit the button marked `RST`. Continue holding the button marked `14` while
-running the following command:
-
-```
-python3 tensorflow/lite/micro/tools/make/downloads/AmbiqSuite-Rel2.2.0/tools/apollo3_scripts/uart_wired_update.py \
--b ${BAUD_RATE} ${DEVICENAME} \
--r 1 \
--f main_nonsecure_wire.bin \
--i 6
-```
-
-You should see a long stream of output as the binary is flashed to the device.
-Once you see the following lines, flashing is complete:
-
-```
-Sending Reset Command.
-Done.
-```
-
-If you don't see these lines, flashing may have failed. Try running through the
-steps in [Flash the binary](#flash-the-binary) again (you can skip over setting
-the environment variables). If you continue to run into problems, follow the
-[AI on a microcontroller with TensorFlow Lite and SparkFun Edge](https://codelabs.developers.google.com/codelabs/sparkfun-tensorflow)
-codelab, which includes more comprehensive instructions for the flashing
-process.
-
-The binary should now be deployed to the device. Hit the button marked `RST` to
-reboot the board.
-
-You should see the device's blue LED flashing. The yellow LED should light when
-a "yes" is heard, the red LED when a "no" is heard, and the green LED when an
-unknown command is heard. The current model has fairly low accuracy, so you may
-have to repeat "yes" a few times.
-
-Debug information is logged by the board while the program is running. To view
-it, establish a serial connection to the board using a baud rate of `115200`.
-On OSX and Linux, the following command should work:
-
-```
-screen ${DEVICENAME} 115200
-```
-
-You will see a line output for every word that is detected:
-
-```
-Heard yes (201) @4056ms
-Heard no (205) @6448ms
-Heard unknown (201) @13696ms
-Heard yes (205) @15000ms
-```
-
-The number after each detected word is its score. By default, the program only
-considers matches as valid if their score is over 200, so all of the scores you
-see will be at least 200.
-
-To stop viewing the debug output with `screen`, hit `Ctrl+A`, immediately
-followed by the `K` key, then hit the `Y` key.
-
 ## Deploy to STM32F746
 
 The following instructions will help you build and deploy the example to the
@@ -452,7 +304,7 @@ for filename in glob.glob("mbed-os/tools/profiles/*.json"):
     print(line.replace("\"-std=gnu++98\"","\"-std=c++11\", \"-fpermissive\""))'
 ```
 
-Note: Mbed has a dependency to an old version of arm_math.h and cmsis_gcc.h (adapted from the general [CMSIS-NN MBED example](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/lite/micro/kernels/cmsis_nn#example-2---mbed)). Therefore you need to copy the newer version as follows:
+Note: Mbed has a dependency to an old version of arm_math.h and cmsis_gcc.h (adapted from the general [CMSIS-NN MBED example](https://github.com/tensorflow/tflite-micro/blob/main/tensorflow/lite/micro/kernels/cmsis_nn#example-2---mbed)). Therefore you need to copy the newer version as follows:
 ```bash
 cp tensorflow/lite/micro/tools/make/downloads/cmsis/CMSIS/DSP/Include/\
 arm_math.h mbed-os/cmsis/TARGET_CORTEX_M/arm_math.h
@@ -579,114 +431,6 @@ using [ARM Mbed](https://github.com/ARMmbed/mbed-cli).
 15. A loopback path from microphone to headset jack is enabled. Headset jack is
     in black color. If there is no output on the serial port, you can connect
     headphone to headphone port to check if audio loopback path is working.
-
-## Deploy to HIMAX WE1 EVB
-
-The following instructions will help you build and deploy this example to
-[HIMAX WE1 EVB](https://github.com/HimaxWiseEyePlus/bsp_tflu/tree/master/HIMAX_WE1_EVB_board_brief)
-board. To understand more about using this board, please check
-[HIMAX WE1 EVB user guide](https://github.com/HimaxWiseEyePlus/bsp_tflu/tree/master/HIMAX_WE1_EVB_user_guide).
-
-### Initial Setup
-
-To use the HIMAX WE1 EVB, please make sure following software are installed:
-
-#### MetaWare Development Toolkit
-
-See
-[Install the Synopsys DesignWare ARC MetaWare Development Toolkit](/tensorflow/lite/micro/tools/make/targets/arc/README.md#install-the-synopsys-designware-arc-metaware-development-toolkit)
-section for instructions on toolchain installation.
-
-#### Make Tool version
-
-A `'make'` tool is required for deploying Tensorflow Lite Micro applications on
-HIMAX WE1 EVB, See
-[Check make tool version](/tensorflow/lite/micro/tools/make/targets/arc/README.md#make-tool)
-section for proper environment.
-
-#### Serial Terminal Emulation Application
-
-There are 2 main purposes for HIMAX WE1 EVB Debug UART port
-
--   print application output
--   burn application to flash by using xmodem send application binary
-
-You can use any terminal emulation program (like [PuTTY](https://www.putty.org/)
-or [minicom](https://linux.die.net/man/1/minicom)).
-
-### Generate Example Project
-
-The example project for HIMAX WE1 EVB platform can be generated with the
-following command:
-
-Download related third party data
-
-```
-make -f tensorflow/lite/micro/tools/make/Makefile TARGET=himax_we1_evb third_party_downloads
-```
-
-Generate micro speech project
-
-```
-make -f tensorflow/lite/micro/tools/make/Makefile generate_micro_speech_make_project TARGET=himax_we1_evb
-```
-
-### Build and Burn Example
-
-Following the Steps to run micro speech example at HIMAX WE1 EVB platform.
-
-1.  Go to the generated example project directory.
-
-    ```
-    cd tensorflow/lite/micro/tools/make/gen/himax_we1_evb_arc/prj/micro_speech/make
-    ```
-
-2.  Build the example using
-
-    ```
-    make app
-    ```
-
-3.  After example build finish, copy ELF file and map file to image generate
-    tool directory. \
-    image generate tool directory located at
-    `'tensorflow/lite/micro/tools/make/downloads/himax_we1_sdk/image_gen_linux_v3/'`
-
-    ```
-    cp micro_speech.elf himax_we1_evb.map ../../../../../downloads/himax_we1_sdk/image_gen_linux_v3/
-    ```
-
-4.  Go to flash image generate tool directory.
-
-    ```
-    cd ../../../../../downloads/himax_we1_sdk/image_gen_linux_v3/
-    ```
-
-    make sure this tool directory is in $PATH. You can permanently set it to
-    PATH by
-
-    ```
-    export PATH=$PATH:$(pwd)
-    ```
-
-5.  run image generate tool, generate flash image file.
-
-    *   Before running image generate tool, by typing `sudo chmod +x image_gen`
-        and `sudo chmod +x sign_tool` to make sure it is executable.
-
-    ```
-    image_gen -e micro_speech.elf -m himax_we1_evb.map -o out.img
-    ```
-
-6.  Download flash image file to HIMAX WE1 EVB by UART:
-
-    *   more detail about download image through UART can be found at
-        [HIMAX WE1 EVB update Flash image](https://github.com/HimaxWiseEyePlus/bsp_tflu/tree/master/HIMAX_WE1_EVB_user_guide#flash-image-update)
-
-After these steps, press reset button on the HIMAX WE1 EVB, you will see
-application output in the serial terminal and lighting LED.
-
-![Animation on Himax WE1 EVB](https://raw.githubusercontent.com/HimaxWiseEyePlus/bsp_tflu/master/HIMAX_WE1_EVB_user_guide/images/tflm_example_micro_speech_int8_led.gif)
 
 ## Deploy to CEVA-BX1
 

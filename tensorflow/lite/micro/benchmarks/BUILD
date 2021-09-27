@@ -1,6 +1,5 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
-
 package(
+    # Disabling layering_check because of http://b/177257332
     features = ["-layering_check"],
     licenses = ["notice"],
 )
@@ -51,16 +50,12 @@ cc_binary(
         "//tensorflow/lite/micro:micro_framework",
         "//tensorflow/lite/micro:op_resolvers",
         "//tensorflow/lite/micro:system_setup",
-        "//tensorflow/lite/micro/kernels:fully_connected",
     ],
 )
 
 cc_binary(
     name = "person_detection_benchmark",
     srcs = ["person_detection_benchmark.cc"],
-    tags = [
-        "no_oss",  # TODO(b/174680668): Exclude from OSS.
-    ],
     deps = [
         ":micro_benchmark",
         "//tensorflow/lite/c:common",
@@ -74,9 +69,4 @@ cc_binary(
         "//tensorflow/lite/micro/examples/person_detection:simple_images_test_data",
         "//tensorflow/lite/schema:schema_fbs",
     ],
-)
-
-build_test(
-    name = "build_test",
-    targets = [":keyword_benchmark"],
 )

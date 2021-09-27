@@ -44,7 +44,6 @@ PLATFORM_FLAGS = \
   -Wextra \
   -Wno-shadow \
   -Wno-vla \
-  -Wno-type-limits \
   -Wno-unused-parameter \
   -Wno-missing-field-initializers \
   -Wno-write-strings \
@@ -79,13 +78,19 @@ EXCLUDED_SRCS := \
 THIRD_PARTY_CC_SRCS := $(filter-out $(EXCLUDED_SRCS), $(THIRD_PARTY_CC_SRCS))
 MICROLITE_CC_SRCS := $(filter-out $(EXCLUDED_SRCS), $(MICROLITE_CC_SRCS))
 
-# TODO(b/158324045): Examine why some tests fail here.
+# Excludes micro_allocator_test because it calls CreateQuantizedFlatbufferTensor,
+# which use std::vector constructor which then invokes new.
+# Excludes memory_arena_threshold_test because the size difference of some
+# allocator classes between different architectures.
+# TODO(b/158651472): Fix brittle arena threshold test.
 EXCLUDED_TESTS := \
-  tensorflow/lite/micro/micro_interpreter_test.cc \
   tensorflow/lite/micro/micro_allocator_test.cc \
-  tensorflow/lite/micro/memory_helpers_test.cc \
-  tensorflow/lite/micro/memory_arena_threshold_test.cc \
-  tensorflow/lite/micro/recording_micro_allocator_test.cc
+  tensorflow/lite/micro/memory_arena_threshold_test.cc
+
+# flatbuffer_utils_test is intentionaly disabled because the flexbuffer builder
+# uses dynamic memory.
+EXCLUDED_TESTS += tensorflow/lite/micro/flatbuffer_utils_test.cc
+
 MICROLITE_TEST_SRCS := $(filter-out $(EXCLUDED_TESTS), $(MICROLITE_TEST_SRCS))
 
 EXCLUDED_EXAMPLE_TESTS := \

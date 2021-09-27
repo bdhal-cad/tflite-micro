@@ -54,3 +54,9 @@ ifeq ($(TOOLCHAIN), gcc)
   CCFLAGS += \
     -Wno-unused-but-set-variable
 endif
+
+# Convert downloaded person detect int8 model.
+DOWNLOAD_RESULT := $(shell $(MAKEFILE_DIR)/ext_libs/person_detection_int8_vela_convert.sh ${MAKEFILE_DIR}/downloads $(GENERATED_SRCS_DIR))
+ifneq ($(DOWNLOAD_RESULT), SUCCESS)
+  $(error Something went wrong with the person detection int8 model conversion: $(DOWNLOAD_RESULT))
+endif

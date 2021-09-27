@@ -2,13 +2,9 @@ load("//tensorflow/lite/micro:build_def.bzl", "micro_copts")
 load("//tensorflow:extra_rules.bzl", "tflm_kernel_friends")
 
 package(
+    # Disabling layering_check because of http://b/177257332
     features = ["-layering_check"],
     licenses = ["notice"],
-)
-
-config_setting(
-    name = "xtensa_hifimini",
-    define_values = {"tflm_build": "xtensa_hifimini"},
 )
 
 package_group(
@@ -50,43 +46,6 @@ cc_library(
 )
 
 cc_library(
-    name = "conv",
-    srcs = [
-        "conv_common.cc",
-    ] + select({
-        "//conditions:default": [
-            "conv.cc",
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/conv.cc",
-        ],
-    }),
-    hdrs = ["conv.h"],
-    copts = micro_copts(),
-    visibility = [
-        # Kernel variants need to be visible to the examples and benchmarks.
-        ":tflite_micro",
-    ],
-    deps = [
-        ":fixedpoint_utils",
-        ":kernel_util",
-        ":xtensa",
-        "//tensorflow/lite/c:common",
-        "//tensorflow/lite/kernels/internal:common",
-        "//tensorflow/lite/kernels/internal:quantization_util",
-        "//tensorflow/lite/kernels/internal:reference_base",
-        "//tensorflow/lite/kernels/internal:tensor",
-        "//tensorflow/lite/kernels:kernel_util",
-        "//tensorflow/lite/kernels:padding",
-    ] + select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-        ],
-    }),
-)
-
-cc_library(
     name = "conv_test_common",
     srcs = [
         "conv_test_common.cc",
@@ -104,81 +63,6 @@ cc_library(
 )
 
 cc_library(
-    name = "depthwise_conv",
-    srcs = [
-        "depthwise_conv_common.cc",
-    ] + select({
-        "//conditions:default": [
-            "depthwise_conv.cc",
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/depthwise_conv.cc",
-        ],
-    }),
-    hdrs = ["depthwise_conv.h"],
-    copts = micro_copts(),
-    visibility = [
-        # Kernel variants need to be visible to the examples and benchmarks.
-        ":tflite_micro",
-    ],
-    deps = [
-        ":conv",
-        ":fixedpoint_utils",
-        ":kernel_util",
-        ":xtensa",
-        "//tensorflow/lite/c:common",
-        "//tensorflow/lite/kernels/internal:common",
-        "//tensorflow/lite/kernels/internal:quantization_util",
-        "//tensorflow/lite/kernels/internal:reference_base",
-        "//tensorflow/lite/kernels/internal:tensor",
-        "//tensorflow/lite/kernels:kernel_util",
-        "//tensorflow/lite/kernels:padding",
-    ] + select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-        ],
-    }),
-)
-
-cc_library(
-    name = "ethosu",
-    srcs = [
-        "ethosu.cc",
-    ],
-    hdrs = ["ethosu.h"],
-    copts = micro_copts(),
-    visibility = [
-        # Kernel variants need to be visible to the examples and benchmarks.
-        ":tflite_micro",
-    ],
-    deps = [
-        "//tensorflow/lite/c:common",
-    ],
-)
-
-cc_library(
-    name = "fixedpoint_utils",
-    hdrs = select({
-        "//conditions:default": [
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/fixedpoint_utils.h",
-        ],
-    }),
-    copts = micro_copts(),
-    deps = [
-        ":xtensa",
-    ] + select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-            "//tensorflow/lite/kernels/internal:compatibility",
-        ],
-    }),
-)
-
-cc_library(
     name = "detection_postprocess_flexbuffers_generated_data",
     srcs = [
         "detection_postprocess_flexbuffers_generated_data.cc",
@@ -186,42 +70,6 @@ cc_library(
     hdrs = [
         "detection_postprocess_flexbuffers_generated_data.h",
     ],
-)
-
-cc_library(
-    name = "fully_connected",
-    srcs = [
-        "fully_connected_common.cc",
-    ] + select({
-        "//conditions:default": [
-            "fully_connected.cc",
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/fully_connected.cc",
-        ],
-    }),
-    hdrs = ["fully_connected.h"],
-    copts = micro_copts(),
-    visibility = [
-        # Kernel variants need to be visible to the examples and benchmarks.
-        ":tflite_micro",
-    ],
-    deps = [
-        ":fixedpoint_utils",
-        ":kernel_util",
-        ":xtensa",
-        "//tensorflow/lite/c:common",
-        "//tensorflow/lite/kernels:kernel_util",
-        "//tensorflow/lite/kernels/internal:common",
-        "//tensorflow/lite/kernels/internal:quantization_util",
-        "//tensorflow/lite/kernels/internal:reference_base",
-        "//tensorflow/lite/kernels/internal:tensor",
-    ] + select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-        ],
-    }),
 )
 
 cc_library(
@@ -254,7 +102,6 @@ cc_library(
         ":tflite_micro",
     ],
     deps = [
-        "@flatbuffers//:runtime_cc",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/kernels/internal:compatibility",
         "//tensorflow/lite/kernels/internal:types",
@@ -266,78 +113,100 @@ cc_library(
     name = "micro_ops",
     srcs = [
         "activations.cc",
-        "hard_swish.cc",
+        "activations_common.cc",
         "add.cc",
         "add_n.cc",
         "arg_min_max.cc",
+        "assign_variable.cc",
         "batch_to_space_nd.cc",
+        "call_once.cc",
         "cast.cc",
         "ceil.cc",
         "circular_buffer.cc",
+        "circular_buffer_common.cc",
         "comparisons.cc",
         "concatenation.cc",
+        "conv.cc",
+        "conv_common.cc",
         "cumsum.cc",
         "depth_to_space.cc",
+        "depthwise_conv.cc",
+        "depthwise_conv_common.cc",
         "dequantize.cc",
         "detection_postprocess.cc",
         "elementwise.cc",
         "elu.cc",
+        "ethosu.cc",
         "exp.cc",
         "expand_dims.cc",
         "fill.cc",
         "floor.cc",
         "floor_div.cc",
         "floor_mod.cc",
+        "fully_connected.cc",
+        "fully_connected_common.cc",
         "gather.cc",
         "gather_nd.cc",
+        "hard_swish.cc",
+        "hard_swish_common.cc",
         "if.cc",
-        "l2norm.cc",
         "l2_pool_2d.cc",
+        "l2norm.cc",
         "leaky_relu.cc",
-        "logical.cc",
-        "logistic.cc",
+        "leaky_relu_common.cc",
         "log_softmax.cc",
+        "logical.cc",
+        "logical_common.cc",
+        "logistic.cc",
+        "logistic_common.cc",
         "maximum_minimum.cc",
         "mul.cc",
         "neg.cc",
         "pack.cc",
         "pad.cc",
         "pooling.cc",
+        "pooling_common.cc",
         "prelu.cc",
+        "quantize.cc",
         "quantize_common.cc",
+        "read_variable.cc",
         "reduce.cc",
         "reshape.cc",
         "resize_bilinear.cc",
         "resize_nearest_neighbor.cc",
         "round.cc",
         "shape.cc",
+        "softmax.cc",
         "softmax_common.cc",
         "space_to_batch_nd.cc",
+        "space_to_depth.cc",
         "split.cc",
         "split_v.cc",
         "squeeze.cc",
         "strided_slice.cc",
         "sub.cc",
+        "svdf.cc",
         "svdf_common.cc",
         "tanh.cc",
-        "transpose_conv.cc",
         "transpose.cc",
+        "transpose_conv.cc",
         "unpack.cc",
+        "var_handle.cc",
         "zeros_like.cc",
-    ] + select({
-        "//conditions:default": [
-            "quantize.cc",
-            "softmax.cc",
-            "svdf.cc",
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/quantize.cc",
-            "xtensa/softmax.cc",
-            "xtensa/svdf.cc",
-        ],
-    }),
+    ],
     hdrs = [
+        "activations.h",
+        "circular_buffer.h",
+        "conv.h",
+        "depthwise_conv.h",
+        "ethosu.h",
+        "fully_connected.h",
+        "hard_swish.h",
+        "leaky_relu.h",
+        "logical.h",
+        "logistic.h",
         "micro_ops.h",
+        "pooling.h",
         "quantize.h",
         "softmax.h",
         "svdf.h",
@@ -349,55 +218,31 @@ cc_library(
     ],
     deps = [
         ":activation_utils",
-        ":fixedpoint_utils",
         ":kernel_util",
         ":micro_utils",
-        ":xtensa",
-        "@flatbuffers//:runtime_cc",
         "//tensorflow/lite/c:common",
-        "//tensorflow/lite/kernels/internal:cppmath",
         "//tensorflow/lite/kernels:kernel_util",
         "//tensorflow/lite/kernels:op_macros",
         "//tensorflow/lite/kernels:padding",
         "//tensorflow/lite/kernels/internal:common",
         "//tensorflow/lite/kernels/internal:compatibility",
+        "//tensorflow/lite/kernels/internal:cppmath",
         "//tensorflow/lite/kernels/internal:quantization_util",
         "//tensorflow/lite/kernels/internal:reference_base",
         "//tensorflow/lite/kernels/internal:tensor",
         "//tensorflow/lite/kernels/internal:types",
-        "//tensorflow/lite/micro:micro_graph",
+        "//tensorflow/lite/micro:flatbuffer_utils",
         "//tensorflow/lite/micro:memory_helpers",
+        "//tensorflow/lite/micro:micro_graph",
         "//tensorflow/lite/micro:micro_utils",
         "//tensorflow/lite/schema:schema_fbs",
-    ] + select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-        ],
-    }),
+        "@flatbuffers//:runtime_cc",
+    ],
 )
 
 cc_library(
     name = "micro_utils",
     hdrs = ["micro_utils.h"],
-)
-
-cc_library(
-    name = "xtensa",
-    hdrs = select({
-        "//conditions:default": [
-        ],
-        ":xtensa_hifimini": [
-            "xtensa/xtensa.h",
-        ],
-    }),
-    copts = micro_copts(),
-    deps = select({
-        "//conditions:default": [],
-        ":xtensa_hifimini": [
-            #"//third_party/xtensa/cstub64s:hifi_mini",
-        ],
-    }),
 )
 
 ####################################
@@ -466,6 +311,18 @@ cc_test(
     srcs = [
         "batch_to_space_nd_test.cc",
     ],
+    deps = [
+        ":kernel_runner",
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/micro:op_resolvers",
+        "//tensorflow/lite/micro:test_helpers",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+cc_test(
+    name = "call_once_test",
+    srcs = ["call_once_test.cc"],
     deps = [
         ":kernel_runner",
         "//tensorflow/lite/c:common",
@@ -551,6 +408,7 @@ cc_test(
     ],
     deps = [
         ":conv_test_common",
+        "//tensorflow/lite/micro/kernels/testdata:conv_test_data",
         ":kernel_runner",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/micro:micro_utils",
@@ -1128,6 +986,21 @@ cc_test(
         ":kernel_runner",
         "//tensorflow/lite/c:common",
         "//tensorflow/lite/micro:micro_utils",
+        "//tensorflow/lite/micro:test_helpers",
+        "//tensorflow/lite/micro/testing:micro_test",
+    ],
+)
+
+cc_test(
+    name = "space_to_depth_test",
+    srcs = [
+        "space_to_depth_test.cc",
+    ],
+    deps = [
+        ":kernel_runner",
+        "//tensorflow/lite/c:common",
+        "//tensorflow/lite/micro:debug_log",
+        "//tensorflow/lite/micro:op_resolvers",
         "//tensorflow/lite/micro:test_helpers",
         "//tensorflow/lite/micro/testing:micro_test",
     ],
