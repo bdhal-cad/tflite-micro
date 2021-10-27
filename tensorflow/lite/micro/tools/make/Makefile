@@ -258,6 +258,9 @@ MICRO_LITE_EXAMPLE_TESTS := $(shell find tensorflow/lite/micro/examples/ -maxdep
 # Internal examples are copied outside the TFLM repo in ../google.
 MICRO_LITE_EXAMPLE_TESTS += $(shell find ../google/ -name Makefile_internal.inc)
 
+# Kernel integration tests must be excluded on certain targets.
+MICRO_LITE_INTEGRATION_TESTS += $(shell find tensorflow/lite/micro/integration_tests -name Makefile.inc)
+
 MICRO_LITE_BENCHMARKS := $(wildcard tensorflow/lite/micro/benchmarks/Makefile.inc)
 
 # TODO(b/152645559): move all benchmarks to benchmarks directory.
@@ -281,12 +284,14 @@ tensorflow/lite/micro/recording_simple_memory_allocator_test.cc \
 tensorflow/lite/micro/simple_memory_allocator_test.cc \
 tensorflow/lite/micro/testing_helpers_test.cc \
 tensorflow/lite/micro/memory_planner/greedy_memory_planner_test.cc \
-tensorflow/lite/micro/memory_planner/linear_memory_planner_test.cc
+tensorflow/lite/micro/memory_planner/linear_memory_planner_test.cc \
+tensorflow/lite/micro/memory_planner/non_persistent_buffer_planner_shim_test.cc
 
 MICROLITE_CC_KERNEL_SRCS := \
 tensorflow/lite/micro/kernels/activations.cc \
 tensorflow/lite/micro/kernels/activations_common.cc \
 tensorflow/lite/micro/kernels/add.cc \
+tensorflow/lite/micro/kernels/add_common.cc \
 tensorflow/lite/micro/kernels/add_n.cc \
 tensorflow/lite/micro/kernels/arg_min_max.cc \
 tensorflow/lite/micro/kernels/assign_variable.cc \
@@ -305,6 +310,7 @@ tensorflow/lite/micro/kernels/depth_to_space.cc \
 tensorflow/lite/micro/kernels/depthwise_conv.cc \
 tensorflow/lite/micro/kernels/depthwise_conv_common.cc \
 tensorflow/lite/micro/kernels/dequantize.cc \
+tensorflow/lite/micro/kernels/dequantize_common.cc \
 tensorflow/lite/micro/kernels/detection_postprocess.cc \
 tensorflow/lite/micro/kernels/elementwise.cc \
 tensorflow/lite/micro/kernels/elu.cc \
@@ -335,12 +341,14 @@ tensorflow/lite/micro/kernels/logistic_common.cc \
 tensorflow/lite/micro/kernels/log_softmax.cc \
 tensorflow/lite/micro/kernels/maximum_minimum.cc \
 tensorflow/lite/micro/kernels/mul.cc \
+tensorflow/lite/micro/kernels/mul_common.cc \
 tensorflow/lite/micro/kernels/neg.cc \
 tensorflow/lite/micro/kernels/pack.cc \
 tensorflow/lite/micro/kernels/pad.cc \
 tensorflow/lite/micro/kernels/pooling.cc \
 tensorflow/lite/micro/kernels/pooling_common.cc \
 tensorflow/lite/micro/kernels/prelu.cc \
+tensorflow/lite/micro/kernels/prelu_common.cc \
 tensorflow/lite/micro/kernels/quantize.cc \
 tensorflow/lite/micro/kernels/quantize_common.cc \
 tensorflow/lite/micro/kernels/read_variable.cc \
@@ -350,6 +358,7 @@ tensorflow/lite/micro/kernels/resize_bilinear.cc \
 tensorflow/lite/micro/kernels/resize_nearest_neighbor.cc \
 tensorflow/lite/micro/kernels/round.cc \
 tensorflow/lite/micro/kernels/shape.cc \
+tensorflow/lite/micro/kernels/slice.cc \
 tensorflow/lite/micro/kernels/softmax.cc \
 tensorflow/lite/micro/kernels/softmax_common.cc \
 tensorflow/lite/micro/kernels/space_to_batch_nd.cc \
@@ -359,6 +368,7 @@ tensorflow/lite/micro/kernels/split_v.cc \
 tensorflow/lite/micro/kernels/squeeze.cc \
 tensorflow/lite/micro/kernels/strided_slice.cc \
 tensorflow/lite/micro/kernels/sub.cc \
+tensorflow/lite/micro/kernels/sub_common.cc \
 tensorflow/lite/micro/kernels/svdf.cc \
 tensorflow/lite/micro/kernels/svdf_common.cc \
 tensorflow/lite/micro/kernels/tanh.cc \
@@ -392,12 +402,6 @@ $(wildcard tensorflow/lite/micro/memory_planner/*.h) \
 LICENSE \
 $(TFL_CC_HDRS)
 
-# Load custom kernels.
-include $(MAKEFILE_DIR)/additional_kernels.inc
-
-MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_TEST_SRCS), $(MICROLITE_CC_BASE_SRCS))
-MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_BENCHMARK_SRCS), $(MICROLITE_CC_SRCS))
-
 # For project generation v1, the headers that are common to all targets need to
 # have a third_party prefix. Other third_party headers (e.g. CMSIS) do not have
 # this requirement and are added to THIRD_PARTY_CC_HDRS with full path from the
@@ -413,6 +417,14 @@ MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_BENCHMARK_SRCS), $(MICROLITE_CC_SR
 # TODO(#47413): remove this additional logic once we are ready to switch over to
 # project generation v2.
 THIRD_PARTY_CC_HDRS :=
+THIRD_PARTY_CC_SRCS :=
+
+# Load custom kernels.
+include $(MAKEFILE_DIR)/additional_kernels.inc
+
+MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_TEST_SRCS), $(MICROLITE_CC_BASE_SRCS))
+MICROLITE_CC_SRCS := $(filter-out $(MICROLITE_BENCHMARK_SRCS), $(MICROLITE_CC_SRCS))
+
 
 # TODO(b/165940489): Figure out how to avoid including fixed point
 # platform-specific headers.
@@ -574,6 +586,9 @@ INCLUDES += -I$(GENERATED_SRCS_DIR)
 # Load the examples.
 include $(MICRO_LITE_EXAMPLE_TESTS)
 
+# Load the integration tests.
+include $(MICRO_LITE_INTEGRATION_TESTS)
+
 # Load the benchmarks.
 include $(MICRO_LITE_BENCHMARKS)
 
@@ -679,13 +694,14 @@ ifneq ($(findstring $(EXPLICITLY_SPECIFIED_TEST),$(MICROLITE_TEST_SRCS)),)
   MICROLITE_TEST_SRCS := $(filter-out $(EXPLICITLY_SPECIFIED_TEST), $(MICROLITE_TEST_SRCS))
   EXPLICITLY_SPECIFIED_TEST_SRCS := \
   $(EXPLICITLY_SPECIFIED_TEST) \
-  tensorflow/lite/micro/benchmarks/keyword_scrambled_model_data.cc \
   tensorflow/lite/micro/testing/test_conv_model.cc
   EXPLICITLY_SPECIFIED_TEST_HDRS := \
-  tensorflow/lite/micro/benchmarks/keyword_scrambled_model_data.h \
   tensorflow/lite/micro/testing/test_conv_model.h
+  EXPLICITLY_SPECIFIED_TEST_GENERATOR_INPUTS := \
+  tensorflow/lite/micro/models/keyword_scrambled.tflite
   $(eval $(call microlite_test,memory_arena_threshold_test,\
-  $(EXPLICITLY_SPECIFIED_TEST_SRCS),$(EXPLICITLY_SPECIFIED_TEST_HDRS)))
+  $(EXPLICITLY_SPECIFIED_TEST_SRCS),$(EXPLICITLY_SPECIFIED_TEST_HDRS), \
+  $(EXPLICITLY_SPECIFIED_TEST_GENERATOR_INPUTS)))
 endif
 
 EXPLICITLY_SPECIFIED_TEST:= tensorflow/lite/micro/micro_allocator_test.cc
@@ -719,6 +735,7 @@ $(eval $(call microlite_test,$(notdir $(basename $(TEST_TARGET))),$(TEST_TARGET)
 
 ifeq ($(TARGET_SPECIFIC_MAKE_TEST),0)
 test: $(MICROLITE_TEST_TARGETS)
+integration_tests: $(MICROLITE_INTEGRATION_TEST_TARGETS)
 endif
 
 # Just build the test targets
